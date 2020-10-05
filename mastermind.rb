@@ -1,5 +1,5 @@
 # frozen_string_literal: false
-require 'pry'
+
 module Codemakerable
   
   def auto_create_code(colors)
@@ -21,31 +21,42 @@ module Codemakerable
         color = gets.chomp
       end
       code.push(color)
-      puts "Current code: #{code}"
     end
+    puts "Your code is #{code}"
     return code
   end
 
   def check(answer, code)
     m = []
     n = []
-    code_copy = code[0..3]
+    code_copy = code[0..3] 
     ans_copy = answer[0..3]
-  
+    
+    # created two for loops, the first one removes all correct answers from code_copy and ans_copy 
+    # this enables checking of answers with repeat colors
+
     for i in 0..3 # check for correct colors in correct positions
       if answer[i] == code[i]
         n.push(i)
         code_copy.delete_at(code_copy.find_index(answer[i]))
         ans_copy.delete_at(ans_copy.find_index(answer[i]))
+      end
     end
 
     for i in 0...ans_copy.length # check for correct colors in wrong positions
-      if code_copy.include?(ans_copy[i]) # check code_copy for single occurences of each color
-        m.push(i)
+      if code_copy.include?(ans_copy[i])
+        # get the pos of ans_copy[i] in ans_orig, then push it if it's not yet in n or m.
+        pos = answer.find_index(ans_copy[i]) 
+        checked_length = 1
+        until (!n.include?(pos) && !m.include?(pos)) || checked_length == 4 # check ans_orig for pos
+          pos = answer[checked_length..3].find_index(ans_copy[i]) + checked_length
+          checked_length += 1
+        end
+        m.push(pos)
         code_copy.delete_at(code_copy.find_index(ans_copy[i])) # delete just one element that corresponds with the color
       end
     end
-  return [m, n] # m - correct colors in wrong position, n - array of correct positions
+  return [m, n] # m - array of wrong positions, n - array of correct positions
   end
 
 end
@@ -57,12 +68,10 @@ module Codebreakerable
     answer = []
     
     until answer.length == 4
-      ans = nil
-      until Mastermind::COLORS.include?(ans) #check if user passes an acceptable choice
-        ans = gets.chomp
-        unless Mastermind::COLORS.include?(ans)
-          puts 'Your answer is not among the choices!'
-        end
+      ans = gets.chomp
+      until colors.include?(ans) #check if user passes an acceptable choice
+        puts 'Your answer is not among the choices!'
+        ans = gets.chomp        
       end
       answer.push(ans)
     end
@@ -79,26 +88,34 @@ module Codebreakerable
       guess.push(colors[num+1])
       guess.push(colors[num+1])
     else 
-      # fill guess with correct colors in correct positions first, then shift correct colors in wrong positions. otherwise, just put random color
+      
+      prev_nums = [] # collect here the numbers that have been used for num below, so that they don't get overwritten
       for i in 0..3
+
+        # fill guess with correct colors in correct positions first
         if clue[1].include?(i)
           guess[i] = prev_ans[i] 
-
+        
+        # then shift correct colors in wrong positions
         elsif clue[0].include?(i)
           # put a random color in current position
-          guess[i] = colors[rand(6)]
+          guess[i] = colors[rand(6)] if guess[i] == nil
 
           # generate random number to which prev_ans[i] will be transferred
           num = rand(4)
 
-          # num should not be in clue[1] (correct colors in correct positions)
-          while clue[1].include?(num) 
-            num = rand(6)
+          # num should not be in clue[1] (correct colors in correct positions) or prev_nums
+          while clue[1].include?(num) || prev_nums.include?(num)
+            num = rand(4)
           end
+          prev_nums.push(num)
           guess[num] = prev_ans[i]
 
-        else 
-          guess[i] = colors[rand(6)]
+        # otherwise, just put random color
+        else
+          if guess[i] == nil 
+            guess[i] = colors[rand(6)]
+          end
         end
       end
     end
@@ -159,7 +176,7 @@ class Mastermind
       ans = codebreaker.auto_guess(COLORS, clue, ans)
       puts "#{codebreaker.name}'s guess is as follows:"
       puts ans
-      binding.pry
+      
       clue = codemaker.check(ans, code)
       puts "#{codebreaker.name} has #{clue[0].length} correctly colored pins in the wrong position, and #{clue[1].length} in the correct position. Press enter for the next guess."
       gets.chomp
